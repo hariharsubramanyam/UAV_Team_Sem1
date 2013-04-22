@@ -1,0 +1,4 @@
+To edit the source, you'll first need to install MPLABX and the XC16 compiler from:
+http://www.microchip.com/pagehandler/en-us/family/mplabx/#downloads
+
+Once both installed, open the UDB3.X folder in MPLAB.

@@ -92,6 +92,8 @@ void AHRS_GyroProp(void){
     AHRSdata.q -= SensorCal.qBias;
     AHRSdata.r -= SensorCal.rBias;
 
+    float gx = _itofQ16( AHRSdata.p );
+
     // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     // Gyro propagation
     // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$

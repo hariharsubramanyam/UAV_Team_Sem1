@@ -27,7 +27,7 @@ extern volatile int16_t vbatt;
 extern volatile tGains Gains;
 extern volatile tCmdData CmdData;
 extern volatile tSensorCal SensorCal;
-extern volatile tDebugPacket DebugPacket;
+extern volatile tAHRSPacket DebugPacket;
 
 /********************************* 
 	main entry point
@@ -46,7 +46,7 @@ int main ( void )
     // Initialize A2D, 
     InitA2D();
 
-    UART1_Init(LOGGING_RC_SPEED); // for data logging and RC transmitter reading
+    UART1_Init(XBEE_SPEED); // for data logging and RC transmitter reading
     UART2_Init(XBEE_SPEED);       // for communication and control signals
 
     // Wait for a bit before doing rate gyro bias calibration
@@ -91,7 +91,7 @@ int main ( void )
             loop.SendSerial = 0;
 
             // Send debug packet
-            //UART1_SendPacket(PACKETID_DEBUG, sizeof(tDebugPacket), &DebugPacket );
+            UART1_SendAHRSpacket();
         }
 
         // Read data from UART RX buffers - 500 Hz
@@ -114,6 +114,7 @@ int main ( void )
             if (vbatt < Gains.lowBatt){
                     // Toggle LED
             }
+            //UART1_SendAHRSpacket();
         }
 
     } // End while(1)
@@ -129,6 +130,9 @@ int main ( void )
 -----------------------------------------------------------------------*/
 void __attribute__((interrupt, auto_psv)) _T1Interrupt( void )
 {
+
+    IFS0bits.T1IF = 0;  /* reset timer interrupt flag	*/
+
     timerCount++;
 
     // At 1000Hz, signal the gyro attitude propagation
@@ -161,7 +165,5 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt( void )
     if ( timerCount % 10 == 0 ){
             loop.LogData = 1;
     }
-
-    IFS0bits.T1IF = 0;  /* reset timer interrupt flag	*/
 
 }	

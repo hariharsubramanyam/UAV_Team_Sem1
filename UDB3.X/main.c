@@ -28,6 +28,7 @@ extern volatile tGains Gains;
 extern volatile tCmdData CmdData;
 extern volatile tSensorCal SensorCal;
 extern volatile tAHRSPacket DebugPacket;
+extern volatile uint16_t msSinceSpektrumByte;
 
 /********************************* 
 	main entry point
@@ -46,8 +47,8 @@ int main ( void )
     // Initialize A2D, 
     InitA2D();
 
-    UART1_Init(XBEE_SPEED); // for data logging and RC transmitter reading
-    UART2_Init(XBEE_SPEED);       // for communication and control signals
+    UART1_Init(XBEE_SPEED);         // for communication and control signals
+    UART2_Init(LOGGING_RC_SPEED);   // for spektrum RC satellite receiver
 
     // Wait for a bit before doing rate gyro bias calibration
     // TODO: test this length of wait
@@ -83,7 +84,7 @@ int main ( void )
         // Accelerometer correction
         if( loop.ReadAccMag ){
             loop.ReadAccMag = 0;
-            //AHRS_AccMagCorrect( );
+            AHRS_AccMagCorrect( );
         }
 
         // Send data over modem - runs at ~20Hz
@@ -94,12 +95,18 @@ int main ( void )
             UART1_SendAHRSpacket();
         }
 
+        // Process Spektrum RC data
+        if(loop.ProcessSpektrum){
+            loop.ProcessSpektrum = 0;
+            UART2_ProcessSpektrumData();
+        }
+
         // Read data from UART RX buffers - 500 Hz
         if(loop.ReadSerial){
             loop.ReadSerial = 0;
 
             // Read serial data
-            //UART1_FlushRX();
+            //UART2_FlushRX_Spektrum();
 
         }
 
@@ -107,14 +114,9 @@ int main ( void )
         // Toggle Red LED at 1Hz
         if(loop.ToggleLED){
             loop.ToggleLED = 0;
+            
             // Toggle LED
             led_toggle(LED_RED);
-
-            // Turn orange led on if battery voltage below 10.1V
-            if (vbatt < Gains.lowBatt){
-                    // Toggle LED
-            }
-            //UART1_SendAHRSpacket();
         }
 
     } // End while(1)
@@ -134,6 +136,11 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt( void )
     IFS0bits.T1IF = 0;  /* reset timer interrupt flag	*/
 
     timerCount++;
+
+    // Increment Spektrum serial timeout counter, protecting against rollover
+    if(msSinceSpektrumByte < 100)
+        msSinceSpektrumByte++;
+    
 
     // At 1000Hz, signal the gyro attitude propagation
     loop.GyroProp = 1;
@@ -156,8 +163,8 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt( void )
         loop.ToggleLED = 1;
     }
 
-    // At 500 Hz, read the serial buffer
-    if ( timerCount % 2 == 0 ){
+    // At 200 Hz, read the serial buffer
+    if ( timerCount % 5 == 0 ){
         loop.ReadSerial = 1;
     }
 

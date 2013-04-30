@@ -30,15 +30,18 @@ void AHRS_init(void){
 
     // Parameters
     SensorCal.gyroRawBias = 512; // Mid-range value for 10-bit A2D
-    SensorCal.accelRawBias= 512; // Mid-range value for 10-bit A2D
-    SensorCal.gyroScale = _Q16ftoi(PI/180.0 / 1024.0 * 3.3 / 0.0033 ); // Based on 10-bit A2D and gyro sensitivity of 3.3mV / deg/s
+    SensorCal.accelRawBias= 500; // Mid-range value for 10-bit A2D (adjusted manually)
+    SensorCal.gyroScale = _Q16ftoi(PI/180.0 / 1024.0 * 3.3 / 0.0033  * 1.5 ); // Based on 10-bit A2D and gyro sensitivity of 3.3mV / deg/s with fudge factor
     SensorCal.gyroPropDT = _Q16ftoi(0.001 / 2.0);
 
     SensorCal.accelScale = _Q16ftoi( 3.3 / 1024.0 / 0.200 ); // at 6g resolution, sensitivity is 200mV/g
     SensorCal.acc_window_min = _Q16ftoi(0.5);
     SensorCal.acc_window_max = _Q16ftoi(1.5);
+    SensorCal.axBias = _Q16ftoi(0.0);
+    SensorCal.ayBias = _Q16ftoi(0.0);
+    SensorCal.azBias = _Q16ftoi(0.0);
 
-    SensorCal.K_AttFilter = _Q16ftoi(0.01*0.7); // Default value, may be overwritten by SensorPacket
+    SensorCal.K_AttFilter = _Q16ftoi(0.025); // Default value, may be overwritten by SensorPacket
 }
 
 void AHRS_GyroProp(void){
@@ -55,7 +58,7 @@ void AHRS_GyroProp(void){
     int16toQ16(&AHRSdata.p, &SensorData.gyroX);
     AHRSdata.p = -mult( AHRSdata.p, SensorCal.gyroScale);
     int16toQ16(&AHRSdata.q, &SensorData.gyroY);
-    AHRSdata.q = -mult( AHRSdata.q, SensorCal.gyroScale );
+    AHRSdata.q = mult( AHRSdata.q, SensorCal.gyroScale );
     int16toQ16(&AHRSdata.r, &SensorData.gyroZ);
     AHRSdata.r = mult( AHRSdata.r, SensorCal.gyroScale );
 
@@ -70,6 +73,8 @@ void AHRS_GyroProp(void){
         SensorCal.pBias += AHRSdata.p;
         SensorCal.qBias += AHRSdata.q;
         SensorCal.rBias += AHRSdata.r;
+
+        led_on(LED_RED);
 
         if( ++SensorCal.biasCount == SensorCal.biasTotal ){
             _Q16 tmp = _Q16ftoi(1.0 / ((float)SensorCal.biasTotal  ));
@@ -92,16 +97,15 @@ void AHRS_GyroProp(void){
     AHRSdata.q -= SensorCal.qBias;
     AHRSdata.r -= SensorCal.rBias;
 
-    float gx = _itofQ16( AHRSdata.p );
-
     // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     // Gyro propagation
     // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    
     AHRSdata.q_est.o -=  mult(  mult(AHRSdata.q_est.x,AHRSdata.p) +  mult(AHRSdata.q_est.y,AHRSdata.q) +  mult(AHRSdata.q_est.z,AHRSdata.r) , SensorCal.gyroPropDT);
     AHRSdata.q_est.x +=  mult(  mult(AHRSdata.q_est.o,AHRSdata.p) -  mult(AHRSdata.q_est.z,AHRSdata.q) +  mult(AHRSdata.q_est.y,AHRSdata.r) , SensorCal.gyroPropDT);
     AHRSdata.q_est.y +=  mult(  mult(AHRSdata.q_est.z,AHRSdata.p) +  mult(AHRSdata.q_est.o,AHRSdata.q) -  mult(AHRSdata.q_est.x,AHRSdata.r) , SensorCal.gyroPropDT);
     AHRSdata.q_est.z +=  mult(  mult(AHRSdata.q_est.x,AHRSdata.q) -  mult(AHRSdata.q_est.y,AHRSdata.p) +  mult(AHRSdata.q_est.o,AHRSdata.r) , SensorCal.gyroPropDT);
-
+    
     // Run the attitude control after propogating gyros
     loop.AttCtl = 1;
 }
@@ -124,14 +128,19 @@ void AHRS_AccMagCorrect(void)
     // Accel scaling, to g
     // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     int16toQ16(&AHRSdata.ax, &SensorData.accX);
-    AHRSdata.ax = mult( AHRSdata.ax, SensorCal.accelScale);
+    AHRSdata.ax = -mult( AHRSdata.ax, SensorCal.accelScale);
     int16toQ16(&AHRSdata.ay, &SensorData.accY);
     AHRSdata.ay = mult( AHRSdata.ay, SensorCal.accelScale );
     int16toQ16(&AHRSdata.az, &SensorData.accZ);
-    AHRSdata.az = mult( AHRSdata.az, SensorCal.accelScale );
+    AHRSdata.az = -mult( AHRSdata.az, SensorCal.accelScale );
+
+    AHRSdata.ax = AHRSdata.ax - SensorCal.axBias;
+    AHRSdata.ay = AHRSdata.ay - SensorCal.ayBias;
+    AHRSdata.az = AHRSdata.az - SensorCal.azBias;
+
     _Q16 ax = AHRSdata.ax;
     _Q16 ay = AHRSdata.ay;
-    _Q16 az = - AHRSdata.az;
+    _Q16 az = AHRSdata.az;
 
     // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     // Maneuver detector, do not use accels during fast movement

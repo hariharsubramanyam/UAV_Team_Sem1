@@ -23,10 +23,6 @@ void Controller_Update(void)
     // Quaternion attitude error
     tQuaternion qerror = qprodconj(AHRSdata.q_est, CmdData.q_cmd);
 
-    //DEBUG
-    //CmdData.AttCmd = 1;
-    //CmdData.throttle = 50;
-
     // New Quaternion Controller from Frazzoli
     _Q16 pErr = AHRSdata.p - CmdData.p;
     _Q16 qErr = AHRSdata.q - CmdData.q;
@@ -59,8 +55,8 @@ void Controller_Update(void)
     _Q16 m4 =  rollCmd  + yawCmd;
 
     // DEBUG
-    CmdData.throttle = 255;
-    CmdData.AttCmd = 1;
+    //CmdData.throttle = 0;
+    //CmdData.AttCmd = 1;
     // END DEBUG
 
     // Get throttle value
@@ -68,7 +64,8 @@ void Controller_Update(void)
     _Q16 throttle = 0;
     int16toQ16(&throttle,&tmp);     // Throttle between 0.0 and 255.0 here
 
-    m1 = 0; m2 = 0; m3 = 0; m4 = 0;
+    // DEBUG
+    //m1 = 0; m2 = 0; m3 = 0; m4 = 0;
 
     if (1 == CmdData.AttCmd || 2 == CmdData.AttCmd) {
 
@@ -131,7 +128,6 @@ void Controller_Init(void)
     CmdData.q = _Q16ftoi(0.0);
     CmdData.r = _Q16ftoi(0.0);
     CmdData.throttle = 0;
-    CmdData.collective = 0;
     CmdData.AttCmd = 0;
 
     // mQxx default values
@@ -148,8 +144,6 @@ void Controller_Init(void)
     Gains.Kd_yaw = _Q16ftoi(184.0);
 
     Gains.maxang = _Q16ftoi(0.8);
-    Gains.lowBatt = 7200; // 7.2 volts
-    Gains.stream_data = 0;
 
     Gains.IntRoll = _Q16ftoi(0.0);
     Gains.IntPitch = _Q16ftoi(0.0);

@@ -60,6 +60,9 @@ typedef struct __attribute__ ((packed)) sSensorCal{
     _Q16 accelScale;
     _Q16 acc_window_min;
     _Q16 acc_window_max;
+    _Q16 axBias;
+    _Q16 ayBias;
+    _Q16 azBias;
 
     _Q16 K_AttFilter;
 
@@ -77,7 +80,6 @@ typedef struct __attribute__ ((packed)) sCmdData{
     tQuaternion q_cmd;
 
     uint8_t throttle;
-    int8_t collective;
     uint8_t AttCmd;
 
 }tCmdData;
@@ -104,10 +106,6 @@ typedef struct __attribute__ ((packed)) sGains
     _Q16 dt;
 
     _Q16 maxang;
-    _Q16 motorFF;
-    uint16_t lowBatt;
-
-    uint8_t stream_data;
 
 }tGains;
 

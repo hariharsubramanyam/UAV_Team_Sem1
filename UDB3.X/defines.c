@@ -3,7 +3,7 @@
 extern _Q16 num0p998, num0p0001, num0p001, num1p0, num0p5, 
     num1p1, num2p0, num4p0, num255, numPI, num2125, num875,
     num625, num1500, num2000, num1000, num10000, num500,
-    num512, num3685, num14p45;
+    num512, num3685, num14p45, num1024;
 
 // Constant definitions
 // Hack, find a better way to do this
@@ -27,6 +27,7 @@ void InitCnsts(void) {
     num10000 = _Q16ftoi(10000.0);
     num500 = _Q16ftoi(500.0);
     num512 = _Q16ftoi(512.0);
+    num1024 = _Q16ftoi(1024.0);
     num3685 = _Q16ftoi(3685.0);
     num14p45 = _Q16ftoi(14.45);
 }

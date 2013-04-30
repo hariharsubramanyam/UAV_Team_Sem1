@@ -10,17 +10,18 @@ extern volatile tAHRSdata AHRSdata;
 extern volatile tCmdData CmdData;
 extern volatile tLoopFlags loop;
 extern volatile tGains Gains;
-extern volatile int16_t vbatt;
 extern volatile tRCdata RCdata;
-extern _Q16 num512, num2p0;
+extern _Q16 num512,num1024, num2p0;
 
 
 // Transmit and Receive buffers
-volatile BYTE UART2txBuff[256];
+#define UART2_TXBUFFSIZE 128
+volatile BYTE UART2txBuff[UART2_TXBUFFSIZE];
 volatile unsigned int UART2tx_RdPtr = 0;
 volatile unsigned int UART2tx_WrPtr = 0;
 
-volatile BYTE UART2rxBuff[256];
+#define UART2_RXBUFFSIZE 128
+volatile BYTE UART2rxBuff[UART2_RXBUFFSIZE];
 volatile unsigned int UART2rx_RdPtr = 0;
 volatile unsigned int UART2rx_WrPtr = 0;
 
@@ -114,40 +115,156 @@ void UART2_SendPacket(BYTE packetId, BYTE len, BYTE* data)
 }
 //======================================================================
 
-// Read and parse any bytes sitting on the RX buffer
-// Call this often to prevent buffer overflow
-void UART2_FlushRX(void){
+volatile BYTE spektrumData[14];
+void UART2_ProcessSpektrumData( )
+{
+    // PROCESS Spektrum receiver data -- see http://www.desertrc.com/spektrum_protocol.htm for protocol
+    // Determine what to do with received character
+    
+    uint8_t i;
+    int16_t scaleInt;
+    _Q16 tmpQ16, scaleQ16;
+    // Data is 14 bytes long
+    for( i=0; i<14; i+=2)
+    {
+
+        uint16_t rcdata = spektrumData[i] << 8; // MSB
+        rcdata += spektrumData[i+1];	// LSB
+#ifdef DSMX
+        // 11-bit data mode
+        uint16_t cmddata = (int16_t) (rcdata & 0b0000011111111111); // get last 11 bits
+        uint8_t channel = rcdata >> 11; // get 5 first bits
+        scaleQ16 = num1024;
+        scaleInt = 8;
+#else
+        // 10-bit data mode
+        uint16_t cmddata = (int16_t) (rcdata & 0b0000001111111111); // get last 10 bits
+        uint8_t channel = rcdata >> 10; // get 6 first bits
+        scaleQ16 = num512;
+        scaleInt = 4;
+#endif
+
+
+        switch(channel){	// process channel data
+            case 0:
+                RCdata.ch0 = cmddata;
+                break;
+            case 1:
+                int16toQ16(&tmpQ16,&cmddata);
+                tmpQ16 -= scaleQ16;
+                RCdata.ch1 = _IQ16div(tmpQ16,scaleQ16);
+                break;
+            case 2:
+                int16toQ16(&tmpQ16,&cmddata);
+                tmpQ16 -= scaleQ16;
+                RCdata.ch2 = _IQ16div(tmpQ16,scaleQ16);
+                break;
+            case 3:
+                int16toQ16(&tmpQ16,&cmddata);
+                tmpQ16 -= scaleQ16;
+                RCdata.ch3 = _IQ16div(tmpQ16,scaleQ16);
+                break;
+            case 4:
+                RCdata.ch4 = cmddata;
+                break;
+            case 5:
+                RCdata.ch5 = cmddata;
+                break;
+            case 6:
+                RCdata.ch6 = cmddata;
+                break;
+            default:
+                break;
+        } // End switch channel
+    } // End for each data byte
+
+    // manual mode
+    if (RCdata.ch4 > 600) {
+        CmdData.AttCmd = 1;
+        CmdData.throttle = RCdata.ch0/scaleInt;  // RCdata is between 0 and 1023, this will be approximately between 0 and 255
+        _Q16 halfRoll = -RCdata.ch1; //mult(RCdata.ch1,num0p5);  // this is about -0.6 -> 0.6  which is +/- ~70 degrees
+        _Q16 halfPitch = RCdata.ch2; //mult(RCdata.ch2,num0p5);
+        _Q16 cosRoll = _Q16cos(halfRoll);
+        _Q16 sinRoll = _Q16sin(halfRoll);
+        _Q16 cosPitch = _Q16cos(halfPitch);
+        _Q16 sinPitch = _Q16sin(halfPitch);
+        CmdData.q_cmd.o = mult(cosRoll,cosPitch);
+        CmdData.q_cmd.x = mult(sinRoll,cosPitch);
+        CmdData.q_cmd.y = mult(cosRoll,sinPitch);
+        CmdData.q_cmd.z = -mult(sinRoll,sinPitch);
+        CmdData.p = CmdData.q = 0;
+        CmdData.r = mult(RCdata.ch3,num2p0);
+
+        // Turn on green LED to signify manual control mode ON
+        led_on(LED_GREEN);
+    } else
+    {
+        // Turn off green LED to signify manual control mode OFF
+        led_off(LED_GREEN);
+        CmdData.AttCmd = 0;
+    }
 
 }
+
+volatile uint16_t msSinceSpektrumByte = 0;
 
 // UART2 receive interrupt, just put byte onto a buffer that will be serviced later
 void __attribute__((__interrupt__,__no_auto_psv__)) _U2RXInterrupt(void)
 {
-  	// Read character into the buffer and increment pointer
-  	UART2rxBuff[UART2rx_WrPtr++] = U2RXREG;
+    // Check if this is the start of a new data frame
+    if(msSinceSpektrumByte > 7){
 
-  	// handle serial errors
-  	if( U2STAbits.OERR ){   // || U2STAbits.FERR
-            U2STAbits.OERR    = 0;
-  	}
+        // Make sure packet size is correct
+        if(UART2rx_WrPtr == 16){
+            // Copy data, discarding first two bytes
+            memcpy(spektrumData, UART2rxBuff+2, 14);
+            // Signal spektrum data processing
+            loop.ProcessSpektrum = 1;
+        }
 
-        // clear the interrupt
-  	IFS1bits.U2RXIF = 0;
+        UART2rx_RdPtr = 0;
+        UART2rx_WrPtr = 0;
+    }
+
+    msSinceSpektrumByte = 0;
+
+    // Read character into the buffer and increment pointer
+    if(UART2rx_WrPtr < UART2_RXBUFFSIZE){
+        UART2rxBuff[UART2rx_WrPtr++] = U2RXREG;
+    }
+    
+    // handle serial errors
+    if( U2STAbits.OERR ){   // || U2STAbits.FERR
+        U2STAbits.OERR    = 0;
+    }
+
+    // clear the interrupt
+    IFS1bits.U2RXIF = 0;
 }
 
 // UART2 transmit interrupt, just put next byte onto the buffer
 void __attribute__((__interrupt__,__no_auto_psv__)) _U2TXInterrupt(void)
 {
-	// If the read pointer hasn't caught up to the write pointer, send the next byte
-	if( UART2tx_RdPtr != UART2tx_WrPtr ){
-            U2TXREG = UART2txBuff[UART2tx_RdPtr++];
-	}
+    // clear the interrupt
+    IFS1bits.U2TXIF = 0;
 
-        // handle serial errors
-  	if( U2STAbits.OERR ){   // || U2STAbits.FERR
-            U2STAbits.OERR    = 0;
-  	}
+    // If the read pointer hasn't caught up to the write pointer, send the next byte
+    if( UART2tx_RdPtr < UART2tx_WrPtr ){
+        U2TXREG = UART2txBuff[UART2tx_RdPtr++];
+    }
 
-        // clear the interrupt
-	IFS1bits.U2TXIF = 0;
+    // If the full buffer has been sent, reset
+    if(UART2tx_RdPtr >= UART2tx_WrPtr){
+        UART2tx_WrPtr = 0;
+        UART2tx_RdPtr = 0;
+    }
+
+    // handle serial errors
+    if( U2STAbits.OERR  || U2STAbits.FERR || U2STAbits.PERR)
+    {
+        U2STAbits.OERR    = 0;
+        U2STAbits.FERR = 0;
+        U2STAbits.PERR = 0;
+    }
+
 }

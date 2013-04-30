@@ -27,7 +27,6 @@ typedef struct sAHRSPacket {
     int16_t r;
 } tAHRSPacket;
 
-
 // Prototypes
 void UART1_SendPacket(BYTE packetId, BYTE len, BYTE* data);
 void UART1_FlushRX(void);
@@ -35,7 +34,7 @@ void UART1_Init(unsigned long int baud);
 void UART1_SendAHRSpacket();
 
 void UART2_SendPacket(BYTE packetId, BYTE len, BYTE* data);
-void UART2_FlushRX(void);
+void UART2_ProcessSpektrumData( );
 void UART2_Init(unsigned long int baud);
 
 void UART_ParsePacket(struct strPacket * rxPacket);
@@ -43,8 +42,8 @@ void UART_ParsePacket(struct strPacket * rxPacket);
 // Defines
 #define STXA 0xFF
 #define STXB 0xFE
-#define RCXA 0x03
-#define RCXB 0x12
+#define RCXA 0xFF
+#define RCXB 0xA2
 
 #define RXSTATE_STXA			0
 #define RXSTATE_STXB			1

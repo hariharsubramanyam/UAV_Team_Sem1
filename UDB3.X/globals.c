@@ -22,4 +22,4 @@ volatile tGains Gains;
 _Q16 num0p998, num0p0001, num0p001, num1p0, num0p5, 
         num1p1, num2p0, num4p0, num255, numPI, num2125, num875,
         num625, num1500, num2000, num1000, num500, num512,
-        num3685, num14p45, num10000;
+        num3685, num14p45, num10000, num1024;

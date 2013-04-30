@@ -10,18 +10,19 @@ extern volatile tAHRSdata AHRSdata;
 extern volatile tCmdData CmdData;
 extern volatile tLoopFlags loop;
 extern volatile tGains Gains;
-extern volatile int16_t vbatt;
 extern volatile tRCdata RCdata;
 extern _Q16 num512, num2p0, num1000, num10000;
 
 
 // Transmit and Receive buffers
-#define TXBUFFSIZE 255
-volatile BYTE UART1txBuff[TXBUFFSIZE];
+#define UART1_TXBUFFSIZE 128
+volatile BYTE UART1txBuff[UART1_TXBUFFSIZE];
 volatile unsigned int UART1tx_RdPtr = 0;
 volatile unsigned int UART1tx_WrPtr = 0;
 
-volatile BYTE UART1rxBuff[256];
+
+#define UART1_RXBUFFSIZE 128
+volatile BYTE UART1rxBuff[UART1_RXBUFFSIZE];
 volatile unsigned int UART1rx_RdPtr = 0;
 volatile unsigned int UART1rx_WrPtr = 0;
 
@@ -96,7 +97,7 @@ void UART1_SendPacket(BYTE packetId, BYTE len, BYTE* data)
 
     uint16_t totalPacketSize = 5 + len;
 
-    if( totalPacketSize + UART1tx_WrPtr > TXBUFFSIZE  ){
+    if( totalPacketSize + UART1tx_WrPtr > UART1_TXBUFFSIZE  ){
         // Packet won't fit in buffer
         return;
     }
@@ -141,39 +142,42 @@ void UART1_FlushRX(void){
 // UART1 receive interrupt, just put byte onto a buffer that will be serviced later
 void __attribute__((__interrupt__,__no_auto_psv__)) _U1RXInterrupt(void)
 {
-    // clear the interrupt
-    IFS0bits.U1RXIF = 0;
-
-    // Read character into the buffer and increment pointer
-    UART1rxBuff[UART1rx_WrPtr++] = U1RXREG;
+     // Read character into the buffer and increment pointer
+    if(UART1rx_WrPtr < UART1_RXBUFFSIZE){
+        UART1rxBuff[UART1rx_WrPtr++] = U1RXREG;
+    }
 
     // handle serial errors
-    if( U1STAbits.OERR ){   // || U1STAbits.FERR
+    if( U1STAbits.OERR ){   // || U2STAbits.FERR
         U1STAbits.OERR    = 0;
     }
+
+    // clear the interrupt
+    IFS0bits.U1RXIF = 0;
 }
 
 // UART1 transmit interrupt, just put next byte onto the buffer
 void __attribute__((__interrupt__,__no_auto_psv__)) _U1TXInterrupt(void)
 {
-        // clear the interrupt
-	IFS0bits.U1TXIF = 0;
-        
-	// If the read pointer hasn't caught up to the write pointer, send the next byte
-	if( UART1tx_RdPtr < UART1tx_WrPtr ){
-            U1TXREG = UART1txBuff[UART1tx_RdPtr++];
-	}
+    // clear the interrupt
+    IFS0bits.U1TXIF = 0;
 
-        if(UART1tx_RdPtr >= UART1tx_WrPtr){
-            UART1tx_WrPtr = 0;
-            UART1tx_RdPtr = 0;
-        }
+    // If the read pointer hasn't caught up to the write pointer, send the next byte
+    if( UART1tx_RdPtr < UART1tx_WrPtr ){
+        U1TXREG = UART1txBuff[UART1tx_RdPtr++];
+    }
 
-        // handle serial errors
-  	if( U1STAbits.OERR  || U1STAbits.FERR || U1STAbits.PERR)
-        {
-            U1STAbits.OERR    = 0;
-            U1STAbits.FERR = 0;
-            U1STAbits.PERR = 0;
-  	}
+    // If the full buffer has been sent, reset
+    if(UART1tx_RdPtr >= UART1tx_WrPtr){
+        UART1tx_WrPtr = 0;
+        UART1tx_RdPtr = 0;
+    }
+
+    // handle serial errors
+    if( U1STAbits.OERR  || U1STAbits.FERR || U1STAbits.PERR)
+    {
+        U1STAbits.OERR    = 0;
+        U1STAbits.FERR = 0;
+        U1STAbits.PERR = 0;
+    }
 }

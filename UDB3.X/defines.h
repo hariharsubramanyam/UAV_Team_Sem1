@@ -4,6 +4,9 @@
 #include "p30f4011.h"			// generic file header
 #include <libq.h>
 
+// Settings for DSM satellite receiver
+#define DSMX   // If using DSMX receiver
+
 // DEFAULT CONTROLLER SETTINGS -- only important if flying in RC mode
 #define MQXX          // load default control values for mini quads
 
@@ -52,11 +55,11 @@
 // Output pin for debugging
 #define DBG_PIN			LATEbits.LATE4 // debug pin - RE4
 
-// Servo defines
-#define PWM1				OC1RS
-#define PWM2				OC2RS
-#define PWM3				OC3RS
-#define PWM4				OC4RS
+// Servo defines, to match UDB3 Radio port numbers
+#define PWM1				OC3RS
+#define PWM2				OC4RS
+#define PWM3				OC2RS
+#define PWM4				OC1RS
 #define SETPWM(channel,x)	(channel = (x + 3685))
 
 typedef struct sLoopFlags{
@@ -72,6 +75,7 @@ typedef struct sLoopFlags{
     uint8_t I2C1Recover;
     uint8_t I2C2Recover;
     uint8_t LogData;
+    uint8_t ProcessSpektrum;
 }tLoopFlags;
 
 

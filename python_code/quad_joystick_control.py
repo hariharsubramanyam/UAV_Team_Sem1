@@ -66,12 +66,24 @@ def sendCommand(serialPort, throttle = 0, roll = 0, pitch = 0, yaw = 0, gear = 0
     msg.append(to8bit(aux2))
     serialPort.write(msg)
 
-ser = serial.Serial('/dev/ttyACM0',57600,timeout = 1)
-def prog_loop()
+ser = serial.Serial('/dev/ttyUSB1',57600,timeout = 1)
+def prog_loop():
     while True:
         t = []
         pygame.event.get()
         for axis in range(6):
-            t.append(axis, axis_convert(joy.get_axis(axis)))
+            t.append(axis_convert(axis, joy.get_axis(axis)))
         sendCommand(serialPort = ser, throttle = t[2], roll = t[0], pitch =
                 t[1], yaw = t[5], gear = t[4], aux1 = t[3], aux2 = 0)
+
+def step():
+    fTime = 0
+    while True:
+        tVal = fTime * 40
+        print "Throttle value: ", tVal
+        sendCommand(serialPort = ser, throttle = tVal, gear = 2000)
+        if fTime > 40:
+            fTime = 0
+        else:
+            fTime += 1
+        pygame.time.wait(200)

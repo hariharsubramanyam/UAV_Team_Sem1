@@ -3,17 +3,6 @@ import pygame
 import serial
 import time
 
-
-pygame.init()
-pygame.joystick.init()
-
-while not pygame.joystick.get_init():
-    print "Joystick not yet initialized. Trying again..."
-    pygame.joystick.init()
-
-joy = pygame.joystick.Joystick(0)
-joy.init()
-
 def quadprint():
     while True:
         axislist = []
@@ -77,7 +66,6 @@ def sendCommand(serialPort, throttle = 0, roll = 0, pitch = 0, yaw = 0, gear = 0
     msg.append(to8bit(aux2))
     serialPort.write(msg)
 
-ser = serial.Serial('/dev/ttyUSB0',57600,timeout = 1)
 def prog_loop():
     while True:
         t = []
@@ -110,7 +98,10 @@ def axis_convert2(axis, value):
             return 0
     #offset = [0.4433, 0.4846, -0.6701, 0.9794, 0.8866, 0.4949]
     #offset = [0.4433, 0.4846, -0.6, 0.9794, 0.8866, 0.4949]
-    mults = [-1021 / 2, 982 / 2, -789, 1, 560, -1042]
+    #order roll - pitch - throttle - gear - yaw
+    # used to be [-200, 0, 50, 0, -200]
+    tune = [0, 0, 0, 0, 0, -124]
+    mults = [-1021 / 1, 982 / 1, -789, 1, 560 / 2, -1042]
     #value += offset[axis]
     value *= mults[axis]
 #    if axis == 2 or 1:
@@ -119,12 +110,15 @@ def axis_convert2(axis, value):
         value = 1000
     elif value < -1000:
         value = -1000
-    if axis == 5:
-        value = value / 2
-        print value + 900
-        return int(value + 900)
-    else:
-        return int(value + 1024)
+    
+    value = int(value + 1024 + tune[axis])
+
+    if value > 1950:
+        value = 1950
+    elif value < 50:
+        value = 50
+
+    return value
 
 def prog_loop2():
     while True:
@@ -133,10 +127,11 @@ def prog_loop2():
         for axis in range(6):
             val = axis_convert2(axis, joy.get_axis(axis))
             t.append(val)
-        print t[3]
+        print t
         sendCommand(serialPort = ser, throttle = t[2], roll = t[0], pitch =
                 t[1], yaw = t[5], gear = t[3], aux1 = 0, aux2 = 0)
-        pygame.time.wait(20)
+        pygame.time.wait(50)
+
 
 def quadprint2():
     while True:
@@ -146,3 +141,17 @@ def quadprint2():
             position = joy.get_axis(axis)
             print axis_convert2(axis, position)
         pygame.time.wait(200)
+
+if __name__=='__main__':
+    pygame.init()
+    pygame.joystick.init()
+    print "running"
+
+    while not pygame.joystick.get_init():
+        print "Joystick not yet initialized. Trying again..."
+        pygame.joystick.init()
+
+    joy = pygame.joystick.Joystick(0)
+    joy.init()
+    ser = serial.Serial('/dev/ttyUSB0',57600,timeout = 1)
+    prog_loop2()

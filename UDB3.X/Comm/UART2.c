@@ -1,5 +1,5 @@
 #include "Comm.h"
-#include "p30f4011.h"
+#include "p30F4011.h"
 #include "../defines.h"
 #include "../AHRS/AHRS.h"
 

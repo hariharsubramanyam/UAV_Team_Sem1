@@ -204,6 +204,16 @@ void UART2_ProcessSpektrumData( )
         CmdData.AttCmd = 0;
     }
 
+    // Switch on ch5
+    if ((RCdata.ch5 > 600) || (RCdata.ch6 > 600)) {
+        //CmdData.Switch = 1;
+        //led_on(LED_RED);
+    } else
+    {
+        //CmdData.Switch = 0;
+        //led_off(LED_RED);
+    }
+
 }
 
 volatile uint16_t msSinceSpektrumByte = 0;

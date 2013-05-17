@@ -94,7 +94,8 @@ void UART1_SendPacket(BYTE packetId, BYTE len, BYTE* data)
     // Start Checksum
     BYTE chksum = 0;
     BYTE i;
-
+//    for(i = 0; i < len; i++)
+  //      data[i] = i;
     uint16_t totalPacketSize = 5 + len;
 
     if( totalPacketSize + UART1tx_WrPtr > UART1_TXBUFFSIZE  ){

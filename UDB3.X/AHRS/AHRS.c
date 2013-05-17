@@ -1,5 +1,7 @@
 #include "AHRS.h"
 
+#define CALIBRATE_ACC
+
 /* globals */
 extern volatile tLoopFlags loop;
 extern volatile tSensorCal SensorCal;
@@ -11,9 +13,12 @@ extern _Q16 num0p998, num0p0001, num1p0, num0p5, num1p1;
 void AHRS_init(void){
 
     // Setup calibration struct
-    SensorCal.biasCount = 0;
-    SensorCal.biasTotal = 2000;
-    SensorCal.blankReads = 200;
+    SensorCal.biasCountGyro = 0;
+    SensorCal.biasTotalGyro = 2000;
+    SensorCal.blankReadsGyro = 200;
+    SensorCal.biasCountAcc = 0;
+    SensorCal.biasTotalAcc = 2000;
+    SensorCal.blankReadsAcc = 200;
     SensorCal.pBias = _Q16ftoi(0.0);
     SensorCal.qBias = _Q16ftoi(0.0);
     SensorCal.rBias = _Q16ftoi(0.0);
@@ -65,9 +70,9 @@ void AHRS_GyroProp(void){
     // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     // Initial gyro bias calculation
     // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-    if( SensorCal.biasCount < SensorCal.biasTotal){
+    if( SensorCal.biasCountGyro < SensorCal.biasTotalGyro){
         // Do some blank reads to clear any garbage in the initial transient
-        if(--SensorCal.blankReads > 0)
+        if(--SensorCal.blankReadsGyro > 0)
             return;
 
         SensorCal.pBias += AHRSdata.p;
@@ -76,8 +81,8 @@ void AHRS_GyroProp(void){
 
         led_on(LED_RED);
 
-        if( ++SensorCal.biasCount == SensorCal.biasTotal ){
-            _Q16 tmp = _Q16ftoi(1.0 / ((float)SensorCal.biasTotal  ));
+        if( ++SensorCal.biasCountGyro == SensorCal.biasTotalGyro ){
+            _Q16 tmp = _Q16ftoi(1.0 / ((float)SensorCal.biasTotalGyro  ));
             SensorCal.pBias = mult( SensorCal.pBias, tmp);
             SensorCal.qBias = mult( SensorCal.qBias, tmp);
             SensorCal.rBias = mult( SensorCal.rBias, tmp);
@@ -85,7 +90,9 @@ void AHRS_GyroProp(void){
             led_off(LED_GREEN);
         }
 
+
         // TODO: Initialize q_est to q_meas
+
 
         return;
     }
@@ -113,7 +120,7 @@ void AHRS_GyroProp(void){
 void AHRS_AccMagCorrect(void)
 {
     // Quit if the biases are still being calculated
-    if( SensorCal.biasCount < SensorCal.biasTotal)
+    if( SensorCal.biasCountGyro < SensorCal.biasTotalGyro)
         return;
 
     // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -133,6 +140,38 @@ void AHRS_AccMagCorrect(void)
     AHRSdata.ay = mult( AHRSdata.ay, SensorCal.accelScale );
     int16toQ16(&AHRSdata.az, &SensorData.accZ);
     AHRSdata.az = -mult( AHRSdata.az, SensorCal.accelScale );
+
+
+    // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    // Initial acc bias calculation
+    // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    if( SensorCal.biasCountAcc < SensorCal.biasTotalAcc){
+        // Do some blank reads to clear any garbage in the initial transient
+        if(--SensorCal.blankReadsAcc > 0)
+            return;
+
+        SensorCal.axBias += AHRSdata.ax;
+        SensorCal.ayBias += AHRSdata.ay;
+        SensorCal.azBias += AHRSdata.az;
+
+        led_on(LED_RED);
+
+        if( ++SensorCal.biasCountAcc == SensorCal.biasTotalAcc ){
+            _Q16 tmp = _Q16ftoi(1.0 / ((float)SensorCal.biasTotalAcc  ));
+            SensorCal.axBias = mult( SensorCal.axBias, tmp);
+            SensorCal.ayBias = mult( SensorCal.ayBias, tmp);
+            SensorCal.azBias = mult( SensorCal.azBias, tmp);
+            led_off(LED_RED);
+            led_off(LED_GREEN);
+        }
+
+
+        return;
+    }
+
+    // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    // Acc bias correction
+    // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
     AHRSdata.ax = AHRSdata.ax - SensorCal.axBias;
     AHRSdata.ay = AHRSdata.ay - SensorCal.ayBias;

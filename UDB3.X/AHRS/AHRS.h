@@ -66,9 +66,12 @@ typedef struct __attribute__ ((packed)) sSensorCal{
 
     _Q16 K_AttFilter;
 
-    int16_t biasCount;
-    int16_t biasTotal;
-    int16_t blankReads;
+    int16_t biasCountGyro;
+    int16_t biasCountAcc;
+    int16_t biasTotalGyro;
+    int16_t biasTotalAcc;
+    int16_t blankReadsGyro;
+    int16_t blankReadsAcc;
 
 }tSensorCal;
 

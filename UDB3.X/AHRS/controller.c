@@ -55,7 +55,7 @@ void Controller_Update(void)
     _Q16 m4 =  rollCmd  + yawCmd;
 
     // DEBUG
-    //CmdData.throttle = 0;
+    //CmdData.throttle = 128;
     //CmdData.AttCmd = 1;
     // END DEBUG
 

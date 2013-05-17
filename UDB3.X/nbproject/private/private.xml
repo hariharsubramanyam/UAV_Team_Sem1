@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project-private xmlns="http://www.netbeans.org/ns/project-private/1">
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/1"/>
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/1">
+        <file>file:/C:/Users/harihar/Documents/MPLabProjects/Buddy_Autopilot/udb3_quadrotor_control/UDB3.X/main.c</file>
+        <file>file:/C:/Users/harihar/Documents/MPLabProjects/Buddy_Autopilot/udb3_quadrotor_control/UDB3.X/AHRS/controller.c</file>
+        <file>file:/C:/Users/harihar/Documents/MPLabProjects/Buddy_Autopilot/udb3_quadrotor_control/UDB3.X/defines.c</file>
+        <file>file:/C:/Users/harihar/Documents/MPLabProjects/Buddy_Autopilot/udb3_quadrotor_control/UDB3.X/setup.c</file>
+        <file>file:/C:/Users/harihar/Documents/MPLabProjects/Buddy_Autopilot/udb3_quadrotor_control/UDB3.X/globals.c</file>
+        <file>file:/C:/Users/harihar/Documents/MPLabProjects/Buddy_Autopilot/udb3_quadrotor_control/UDB3.X/defines.h</file>
+        <file>file:/C:/Users/harihar/Documents/MPLabProjects/Buddy_Autopilot/udb3_quadrotor_control/UDB3.X/Comm/UART2.c</file>
+        <file>file:/C:/Users/harihar/Documents/MPLabProjects/Buddy_Autopilot/udb3_quadrotor_control/UDB3.X/AHRS/AHRS.h</file>
+        <file>file:/C:/Users/harihar/Documents/MPLabProjects/Buddy_Autopilot/udb3_quadrotor_control/UDB3.X/AHRS/AHRS.c</file>
+        <file>file:/C:/Users/harihar/Documents/MPLabProjects/Buddy_Autopilot/udb3_quadrotor_control/UDB3.X/Comm/UART1.c</file>
+        <file>file:/C:/Users/harihar/Documents/MPLabProjects/Buddy_Autopilot/udb3_quadrotor_control/UDB3.X/Comm/Comm.h</file>
+    </open-files>
 </project-private>

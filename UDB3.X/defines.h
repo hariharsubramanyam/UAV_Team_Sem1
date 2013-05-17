@@ -1,7 +1,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-#include "p30f4011.h"			// generic file header
+#include "p30F4011.h"			// generic file header
 #include <libq.h>
 
 // Settings for DSM satellite receiver

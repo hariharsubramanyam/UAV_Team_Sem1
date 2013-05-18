@@ -34,7 +34,7 @@ CMD_AHRS = 0x01
 def read_and_decode_udb3():
   global c_state, c, S_HEADER1, S_IDLE, S_HEADER2, S_HEADER_CMD, S_HEADER_SIZE, INBUF_SIZE, HEADER_BYTE_1, HEADER_BYTE_2, INBUF_SIZE, offset, dataSize, checksum, cmd
   c = ser.read(1)
-  while c:
+  while not(type(c) == type(2)):
     c = bytearray(c)[0]
     if (c_state == S_IDLE):
       c_state =  S_HEADER1  if (c==HEADER_BYTE_1) else S_IDLE
@@ -43,7 +43,7 @@ def read_and_decode_udb3():
     elif (c_state == S_HEADER2):
       cmd = c
       checksum = 0
-      checksum = checksum + c
+      checksum = to8bit(checksum + c)
       c_state = S_HEADER_CMD
     elif (c_state == S_HEADER_CMD):
       if (c > INBUF_SIZE):
@@ -52,18 +52,18 @@ def read_and_decode_udb3():
       dataSize = c
       inBuf = []
       offset = 0
-      checksum = checksum + c
+      checksum = to8bit(checksum + c)
       c_state = S_HEADER_SIZE  # the command is to follow
     elif (c_state == S_HEADER_SIZE and offset < dataSize):
-      checksum = checksum + c
+      checksum = to8bit(checksum + c)
       inBuf.append(c)
       offset = len(inBuf)
     elif (c_state == S_HEADER_SIZE and offset >= dataSize):
-      if (to8bit(checksum) == 0xFF - c + 1) :  # compare calculated and transferred checksum
+      if (to8bit(checksum) == to8bit(0xFF - c + 1)):  # compare calculated and transferred checksum
         evaluateCommand(cmd, dataSize, inBuf)  # we got a valid packet, evaluate it
       else :
         a = 0
-        print "wrong checksum" , checksum , 0xFF - c + 1
+        print "wrong checksum" , to8bit(checksum) , to8bit(0xFF - c + 1)
       c_state = S_IDLE
       return 
     c = ser.read()
@@ -132,7 +132,7 @@ values4 = [0 for x in range(100)]
 values5 = [0 for x in range(100)]
 values6 = [0 for x in range(100)]
 
-ser = serial.Serial('/dev/ttyACM0', 57600)
+ser = serial.Serial('/dev/ttyUSB0', 57600)
 
 def SerialReader():
   read_and_decode_udb3()
@@ -175,4 +175,3 @@ root.after(10,SerialReader)
 root.after(10,RealtimePloter)
 Tkinter.mainloop()
 pylab.show()
-

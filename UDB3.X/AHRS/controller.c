@@ -10,6 +10,7 @@ extern volatile tAHRSdata AHRSdata;
 extern volatile tCmdData CmdData;
 extern volatile tGains Gains;
 extern _Q16 num14p45, num3685;
+extern tQuaternion qerror;
 
 /*---------------------------------------------------------------------
   Function Name: Controller_Update
@@ -21,7 +22,7 @@ extern _Q16 num14p45, num3685;
 void Controller_Update(void)
 {
     // Quaternion attitude error
-    tQuaternion qerror = qprodconj(AHRSdata.q_est, CmdData.q_cmd);
+    qerror = qprodconj(AHRSdata.q_est, CmdData.q_cmd);
 
     // New Quaternion Controller from Frazzoli
     _Q16 pErr = AHRSdata.p - CmdData.p;
@@ -55,7 +56,7 @@ void Controller_Update(void)
     _Q16 m4 =  rollCmd  + yawCmd;
 
     // DEBUG
-    //CmdData.throttle = 0;
+    //CmdData.throttle = 128;
     //CmdData.AttCmd = 1;
     // END DEBUG
 

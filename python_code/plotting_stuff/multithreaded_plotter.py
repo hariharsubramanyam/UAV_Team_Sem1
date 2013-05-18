@@ -1,17 +1,14 @@
-#!/usr/bin/env python
-# Plot a graph of Data which is comming in on the fly
-# uses pylab
-# Author: Norbert Feurle
-# Date: 12.1.2012
-# License: if you get any profit from this then please share it with me  and only use it for good
-
-
 import pylab
 from pylab import *
 import Tkinter
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 import serial
 import struct
+from time import *
+import threading
+
+serialdata = []
+data = True
 
 def to16bit(x):
     return (x%(1<<16))
@@ -71,7 +68,12 @@ def read_and_decode_udb3():
 def evaluateCommand(command,datasize, buf):
   global inBuf
   if command == CMD_SONARS:
-    print "got sonar"
+    #print "got sonar"
+    buf = [chr(x) for x in buf]
+    buf = ''.join(buf)
+    buf = struct.unpack("B",buf)
+    values1.append(buf[0]*80)
+    del values1[0]
   elif command == CMD_AHRS:
     buf = [chr(x) for x in buf]
     buf = ''.join(buf)
@@ -83,7 +85,6 @@ def evaluateCommand(command,datasize, buf):
     values4.append(buf[4])
     values5.append(buf[5])
     values6.append(buf[6])
-    
 
 Y_MIN = -32000
 Y_MAX = 32000
@@ -119,12 +120,6 @@ toolbar = NavigationToolbar2TkAgg( canvas, root )
 toolbar.update()
 canvas._tkcanvas.pack(side=Tkinter.TOP, fill=Tkinter.BOTH, expand=1)
 
-values1 = []
-values2 = []
-values3 = []
-values4 = []
-values5 = []
-values6 = []
 values1 = [0 for x in range(100)]
 values2 = [0 for x in range(100)]
 values3 = [0 for x in range(100)]
@@ -132,11 +127,9 @@ values4 = [0 for x in range(100)]
 values5 = [0 for x in range(100)]
 values6 = [0 for x in range(100)]
 
-ser = serial.Serial('/dev/ttyUSB0', 57600)
+ser = serial.Serial('/dev/ttyACM0', 57600)
 
-def SerialReader():
-  read_and_decode_udb3()
-  root.after(int(wScale2['to'])-wScale2.get(),SerialReader)
+
 def RealtimePloter():
   global values,wScale,wScale2
   NumberSamples=min(len(values1),wScale.get())
@@ -150,27 +143,50 @@ def RealtimePloter():
   ax.axis([CurrentXAxis.min(),CurrentXAxis.max(),Y_MIN,Y_MAX])
   canvas.draw()
   root.after(10,RealtimePloter)
-  #canvas.draw()  
-  #manager.show()
 
-def _quit():
-    root.quit()     # stops mainloop
-    root.destroy()  # this is necessary on Windows to prevent
+class SensorThread(threading.Thread):
+    def run(self):
+        try:
+            while True:
+                read_and_decode_udb3()
+                sleep(0.001)
+        except KeyboardInterrupt:
+            exit()
+
+class Gui(object):
+    def __init__(self):
+        self.root = Tk()
+        self.lbl = Label(self.root, text="")
+        self.updateGUI()
+        self.readSensor()
+
+    def run(self):
+        self.lbl.pack()
+        self.lbl.after(10, self.updateGUI)
+        self.root.mainloop()
+
+
+if __name__ == "__main__":
+    SensorThread().start()
+    def _quit():
+        root.quit()     # stops mainloop
+        root.destroy()  # this is necessary on Windows to prevent
                     # Fatal Python Error: PyEval_RestoreThread: NULL tstate
+    #sys.argv[1]
 
-button = Tkinter.Button(master=root, text='Quit', command=_quit)
-button.pack(side=Tkinter.BOTTOM)
+    button = Tkinter.Button(master=root, text='Quit', command=_quit)
+    button.pack(side=Tkinter.BOTTOM)
 
-wScale = Tkinter.Scale(master=root,label="View Width:", from_=3, to=1000,sliderlength=30,length=ax.get_frame().get_window_extent().width, orient=Tkinter.HORIZONTAL)
-wScale2 = Tkinter.Scale(master=root,label="Generation Speed:", from_=1, to=200,sliderlength=30,length=ax.get_frame().get_window_extent().width, orient=Tkinter.HORIZONTAL)
-wScale2.pack(side=Tkinter.BOTTOM)
-wScale.pack(side=Tkinter.BOTTOM)
+    wScale = Tkinter.Scale(master=root,label="View Width:", from_=3, to=1000,sliderlength=30,length=ax.get_frame().get_window_extent().width, orient=Tkinter.HORIZONTAL)
+    wScale2 = Tkinter.Scale(master=root,label="Generation Speed:", from_=1, to=200,sliderlength=30,length=ax.get_frame().get_window_extent().width, orient=Tkinter.HORIZONTAL)
+    wScale2.pack(side=Tkinter.BOTTOM)
+    wScale.pack(side=Tkinter.BOTTOM)
 
-wScale.set(100)
-wScale2.set(wScale2['to']-10)
+    wScale.set(100)
+    wScale2.set(wScale2['to']-10)
 
-root.protocol("WM_DELETE_WINDOW", _quit)  #thanks aurelienvlg
-root.after(10,SerialReader)
-root.after(10,RealtimePloter)
-Tkinter.mainloop()
-pylab.show()
+    root.protocol("WM_DELETE_WINDOW", _quit)  #thanks aurelienvlg
+    root.after(10,RealtimePloter)
+    Tkinter.mainloop()
+    pylab.show()
+    Gui().run()

@@ -12,7 +12,9 @@ extern volatile tLoopFlags loop;
 extern volatile tGains Gains;
 extern volatile tRCdata RCdata;
 extern _Q16 num512, num2p0, num1000, num10000;
-extern tQuaternion qerror;
+extern volatile _Q16 rollCmd;
+extern volatile _Q16 pitchCmd;
+extern volatile _Q16 yawCmd;
 
 
 // Transmit and Receive buffers
@@ -74,46 +76,52 @@ void UART1_Init(unsigned long int baud){
 
 void UART1_SendAHRSpacket()
 {
-
-    _Q16 pErr = AHRSdata.p - CmdData.p;
-    _Q16 qErr = AHRSdata.q - CmdData.q;
-    _Q16 rErr = AHRSdata.r - CmdData.r;
-
     tAHRSPacket pkt;
-
-    /*
     pkt.qw = (int16_t)(_itofQ16(mult(AHRSdata.q_est.o, num10000)));
-    
     pkt.qx = (int16_t)(_itofQ16(mult(AHRSdata.q_est.x, num10000)));
     pkt.qy = (int16_t)(_itofQ16(mult(AHRSdata.q_est.y, num10000)));
     pkt.qz = (int16_t)(_itofQ16(mult(AHRSdata.q_est.z, num10000)));
-    
-    
-    pkt.qx = (int16_t)(_itofQ16(mult(AHRSdata.p, num1000)));
-    pkt.qy = (int16_t)(_itofQ16(mult(AHRSdata.q, num1000)));
-    pkt.qz = (int16_t)(_itofQ16(mult(AHRSdata.r, num1000)));
-    
-    
-    pkt.p = (int16_t)(_itofQ16(mult(qerror.x, num1000)));
-    pkt.q = (int16_t)(_itofQ16(mult(qerror.y, num1000)));
-    pkt.r = (int16_t)(_itofQ16(mult(qerror.z, num1000)));
-    */
-
-
-    pkt.p = (int16_t)(_itofQ16(mult(AHRSdata.q_est.x, num1000)));
-    pkt.q = (int16_t)(_itofQ16(mult(AHRSdata.q_est.y, num1000)));
-    pkt.r = (int16_t)(_itofQ16(mult(AHRSdata.q_est.z, num1000)));
-
-    pkt.qw = (int16_t)(_itofQ16(mult(AHRSdata.q_est.o, num1000)));
-    pkt.qx = (int16_t)(_itofQ16(mult(CmdData.q_cmd.x, num1000)));
-    pkt.qy = (int16_t)(_itofQ16(mult(CmdData.q_cmd.y, num1000)));
-    pkt.qz = (int16_t)(_itofQ16(mult(CmdData.q_cmd.z, num1000)));
     /*
-    pkt.p = (int16_t)(_itofQ16(mult(pErr, num1000)));
-    pkt.q = (int16_t)(_itofQ16(mult(qErr, num1000)));
-    pkt.r = (int16_t)(_itofQ16(mult(rErr, num1000)));
-*/
+    pkt.p = (int16_t)(_itofQ16(mult(AHRSdata.p, num1000)));
+    pkt.q = (int16_t)(_itofQ16(mult(AHRSdata.q, num1000)));
+    pkt.r = (int16_t)(_itofQ16(mult(AHRSdata.r, num1000)));
+    pkt.p = (int16_t)(_itofQ16(mult(AHRSdata.ax, num10000)));
+    pkt.q = (int16_t)(_itofQ16(mult(AHRSdata.ay, num10000)));
+    pkt.r = (int16_t)(_itofQ16(mult(AHRSdata.az, num10000)));
+     * */
+    pkt.p = (int16_t)(_itofQ16(mult(CmdData.q_cmd.x, num10000)));
+    pkt.q = (int16_t)(_itofQ16(mult(CmdData.q_cmd.y, num10000)));
+    pkt.r = (int16_t)(_itofQ16(mult(CmdData.q_cmd.z, num10000)));
+
     UART1_SendPacket(PACKETID_AHRS, sizeof(tAHRSPacket), &pkt);
+}
+
+void UART1_SendAHRSEXTpacket()
+{
+    tAHRSEXTPacket pkt;
+    pkt.qw = (int16_t)(_itofQ16(mult(AHRSdata.q_est.o, num10000)));
+    pkt.qx = (int16_t)(_itofQ16(mult(AHRSdata.q_est.x, num10000)));
+    pkt.qy = (int16_t)(_itofQ16(mult(AHRSdata.q_est.y, num10000)));
+    pkt.qz = (int16_t)(_itofQ16(mult(AHRSdata.q_est.z, num10000)));
+
+    pkt.qcw = (int16_t)(_itofQ16(mult(CmdData.q_cmd.o, num10000)));
+    pkt.qcx = (int16_t)(_itofQ16(mult(CmdData.q_cmd.x, num10000)));
+    pkt.qcy = (int16_t)(_itofQ16(mult(CmdData.q_cmd.y, num10000)));
+    pkt.qcz = (int16_t)(_itofQ16(mult(CmdData.q_cmd.z, num10000)));
+    
+    pkt.p = (int16_t)(_itofQ16(mult(AHRSdata.p, num1000)));
+    pkt.q = (int16_t)(_itofQ16(mult(AHRSdata.q, num1000)));
+    pkt.r = (int16_t)(_itofQ16(mult(AHRSdata.r, num1000)));
+
+    pkt.ax = (int16_t)(_itofQ16(mult(AHRSdata.axavg, num1000)));
+    pkt.ay = (int16_t)(_itofQ16(mult(AHRSdata.ayavg, num1000)));
+    pkt.az = (int16_t)(_itofQ16(mult(AHRSdata.azavg, num1000)));
+
+    pkt.intPitch = (int16_t)(_itofQ16(mult(Gains.IntPitch, num1000)));
+    pkt.intRoll = (int16_t)(_itofQ16(mult(Gains.IntRoll, num1000)));
+    pkt.intYaw = (int16_t)(_itofQ16(mult(Gains.IntYaw, num1000)));
+
+    UART1_SendPacket(PACKETID_AHRS_EXT, sizeof(tAHRSEXTPacket), &pkt);
 }
 
 // Send generic packet
@@ -125,8 +133,7 @@ void UART1_SendPacket(BYTE packetId, BYTE len, BYTE* data)
     // Start Checksum
     BYTE chksum = 0;
     BYTE i;
-//    for(i = 0; i < len; i++)
-  //      data[i] = i;
+
     uint16_t totalPacketSize = 5 + len;
 
     if( totalPacketSize + UART1tx_WrPtr > UART1_TXBUFFSIZE  ){

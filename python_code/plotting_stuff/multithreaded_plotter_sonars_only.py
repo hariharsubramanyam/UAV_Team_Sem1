@@ -6,7 +6,6 @@ import serial
 import struct
 from time import *
 import threading
-import numpy
 
 serialdata = []
 data = True
@@ -15,12 +14,6 @@ def to16bit(x):
     return (x%(1<<16))
 def to8bit(x):
     return (x%(1<<8))
-
-def quaternionToEuler((q0,q1,q2,q3)):
-  roll = math.atan2(2*(q0*q1+q2*q3),1-2*(q1**2+q2**2))
-  pitch = math.asin(2*(q0*q2-q3*q1))
-  yaw = math.atan2(2*(q0*q3+q1*q2),1-2*(q2**2+q3**2))
-  return (roll,pitch,yaw)
 
 S_IDLE = 0
 S_HEADER1 = 1
@@ -73,42 +66,22 @@ def read_and_decode_udb3():
       return 
     c = ser.read()
 
-
-prevVal = -1
-alpha = 0.5
-
-previousValues = []
-MEDIAN_WINDOW_SIZE = 10
-
 def evaluateCommand(command,datasize, buf):
-  global inBuf,prevVal,alpha, previousValues, MEDIAN_WINDOW_SIZE
+  global inBuf
   if command == CMD_SONARS:
+    #print "got sonar"
     buf = [chr(x) for x in buf]
     buf = ''.join(buf)
-    #enables arbitrary number of sonar readings
-    n = "%d" % datasize
-    buf = struct.unpack(n+"B",buf)
-
-    if len(previousValues) < MEDIAN_WINDOW_SIZE:
-      previousValues = [0]*MEDIAN_WINDOW_SIZE
-    previousValues.append(buf[0])
-    del previousValues[0]
-    xt = numpy.median(previousValues)
-    #print xt
-
-    '''
-    xt = buf[0]
-    if prevVal == -1:
-      prevVal = xt
-    xt = alpha*xt + (1-alpha)*prevVal
-    prevVal = xt
-    '''
-    values12.append(xt*100)
+    buf = struct.unpack("3B",buf)
+    print buf
+    values9.append(buf[0]*80)
+    values10.append(buf[1]*80)
+    values11.append(buf[2]*80)
   elif command == CMD_AHRS:
     buf = [chr(x) for x in buf]
     buf = ''.join(buf)
     buf = struct.unpack("7h",buf)
-    #print buf
+    print buf
     values1.append(buf[1])
     values2.append(buf[2])
     values3.append(buf[3])
@@ -118,38 +91,27 @@ def evaluateCommand(command,datasize, buf):
   elif command == CMD_AHRS_EXT:
     buf = [chr(x) for x in buf]
     buf = ''.join(buf)
-    buf = struct.unpack("17h",buf)
-    #print buf
-
-    (roll,pitch,yaw) = quaternionToEuler(tuple([x/10000.0 for x in buf[:4]]))
-
+    buf = struct.unpack("14h",buf)
+    print buf
     #Roll com vs. est
-    #values1.append(buf[1])
-    #values2.append(buf[2])
-    values1.append(roll*180/3.14*100)
-    values2.append(pitch*180/3.14*100)
-    #Gyro
-    #values6.append(buf[8] + 7500)
-    #values7.append(buf[9] + 7500)
-    #values8.append(buf[10] + 7500)
+    values1.append(buf[1])
+    values2.append(buf[5])
     #Acc
-    values3.append(buf[11] - 7500)
-    values4.append(buf[12] - 7500)
-    values5.append(buf[13] - 7500)
-    #Integrals
-    values9.append(buf[5] - 7500)
-    values10.append(buf[6] - 7500)
-    values11.append(buf[7] - 7500)
+    values3.append(buf[11]*2 - 7500)
+    values4.append(buf[12]*2 - 7500)
+    values5.append(buf[13]*2 - 7500)
+    #Gyro
+    values6.append(buf[8] + 7500)
+    values7.append(buf[9] + 7500)
+    values8.append(buf[10] + 7500)
 
 Y_MIN = -32000
 Y_MAX = 32000
 
 Y_MIN = -10000
 Y_MAX = 10000
-
-Y_MIN = -5000
-Y_MAX = 5000
-
+Y_MIN = -300
+Y_MAX = 300
 Y_MIN = -12000
 Y_MAX = 12000
 NUM_SONARS = 4
@@ -179,12 +141,6 @@ line6 = ax.plot(xAchse,yAchse,'-')
 line7 = ax.plot(xAchse,yAchse,'-')
 line8 = ax.plot(xAchse,yAchse,'-')
 
-line9 = ax.plot(xAchse,yAchse,'-')
-line10 = ax.plot(xAchse,yAchse,'--')
-line11 = ax.plot(xAchse,yAchse,'--')
-
-line12 = ax.plot(xAchse,yAchse,'-')
-
 canvas = FigureCanvasTkAgg(fig, master=root)
 canvas.show()
 canvas.get_tk_widget().pack(side=Tkinter.TOP, fill=Tkinter.BOTH, expand=1)
@@ -204,43 +160,23 @@ values6 = [0 for x in range(100)]
 values7 = [0 for x in range(100)]
 values8 = [0 for x in range(100)]
 
-values9 = [0 for x in range(100)]
-values10 = [0 for x in range(100)]
-values11 = [0 for x in range(100)]
-
-values12 = [0 for x in range(100)]
-
-ser = serial.Serial('/dev/ttyUSB0', 57600)
+ser = serial.Serial('/dev/ttyACM0', 57600)
 
 
 def RealtimePloter():
   global values,wScale,wScale2
-
-  if wScale2.get()>= 200:
-    #subplot(211)
-    '''
-    NumberSamples=min(len(values1),wScale.get())
-    CurrentXAxis=pylab.arange(len(values1)-NumberSamples,len(values1),1)
-    line1[0].set_data(CurrentXAxis,pylab.array(values1[-NumberSamples:]))
-    line2[0].set_data(CurrentXAxis,pylab.array(values2[-NumberSamples:]))
-    line3[0].set_data(CurrentXAxis,pylab.array(values3[-NumberSamples:]))
-    line4[0].set_data(CurrentXAxis,pylab.array(values4[-NumberSamples:]))
-    line5[0].set_data(CurrentXAxis,pylab.array(values5[-NumberSamples:]))
-    line6[0].set_data(CurrentXAxis,pylab.array(values6[-NumberSamples:]))
-    line7[0].set_data(CurrentXAxis,pylab.array(values7[-NumberSamples:]))
-    line8[0].set_data(CurrentXAxis,pylab.array(values8[-NumberSamples:]))
-    #line9[0].set_data(CurrentXAxis,pylab.array(values9[-NumberSamples:]))
-    #line10[0].set_data(CurrentXAxis,pylab.array(values10[-NumberSamples:]))
-    #line11[0].set_data(CurrentXAxis,pylab.array(values11[-NumberSamples:]))
-    '''
-    #subplot(212)
-    NumberSamples=min(len(values12),wScale.get())
-    CurrentXAxis=pylab.arange(len(values12)-NumberSamples,len(values12),1)
-    line12[0].set_data(CurrentXAxis,pylab.array(values12[-NumberSamples:]))
-
-    ax.axis([CurrentXAxis.min(),CurrentXAxis.max(),Y_MIN,Y_MAX])
-    canvas.draw()
-
+  NumberSamples=min(len(values1),wScale.get())
+  CurrentXAxis=pylab.arange(len(values1)-NumberSamples,len(values1),1)
+  line1[0].set_data(CurrentXAxis,pylab.array(values1[-NumberSamples:]))
+  line2[0].set_data(CurrentXAxis,pylab.array(values2[-NumberSamples:]))
+  line3[0].set_data(CurrentXAxis,pylab.array(values3[-NumberSamples:]))
+  line4[0].set_data(CurrentXAxis,pylab.array(values4[-NumberSamples:]))
+  line5[0].set_data(CurrentXAxis,pylab.array(values5[-NumberSamples:]))
+  line6[0].set_data(CurrentXAxis,pylab.array(values6[-NumberSamples:]))
+  line7[0].set_data(CurrentXAxis,pylab.array(values7[-NumberSamples:]))
+  line8[0].set_data(CurrentXAxis,pylab.array(values8[-NumberSamples:]))
+  ax.axis([CurrentXAxis.min(),CurrentXAxis.max(),Y_MIN,Y_MAX])
+  canvas.draw()
   root.after(10,RealtimePloter)
 
 class SensorThread(threading.Thread):   
@@ -248,6 +184,7 @@ class SensorThread(threading.Thread):
 
     def stop(self):
         self._stopped = True
+        print self._stopped
 
     def run(self):
         try:
@@ -257,6 +194,18 @@ class SensorThread(threading.Thread):
         except KeyboardInterrupt:
             exit()
 
+class Gui(object):
+    def __init__(self):
+        self.root = Tk()
+        self.lbl = Label(self.root, text="")
+        self.updateGUI()
+        self.readSensor()
+
+    def run(self):
+        self.lbl.pack()
+        self.lbl.after(10, self.updateGUI)
+        self.root.mainloop()
+
   
 sensorThread = SensorThread()
 
@@ -265,10 +214,6 @@ def _quit():
     root.destroy()  # this is necessary on Windows to prevent
                     # Fatal Python Error: PyEval_RestoreThread: NULL tstate
     sensorThread.stop()
-    
-
-wScale = Tkinter.Scale(master=root,label="View Width:", from_=3, to=3000,sliderlength=30,length=ax.get_frame().get_window_extent().width, orient=Tkinter.HORIZONTAL)
-wScale2 = Tkinter.Scale(master=root,label="Generation Speed:", from_=1, to=200,sliderlength=30,length=ax.get_frame().get_window_extent().width, orient=Tkinter.HORIZONTAL)
 
 if __name__ == "__main__":
     sensorThread.start()
@@ -276,6 +221,8 @@ if __name__ == "__main__":
     button = Tkinter.Button(master=root, text='Quit', command=_quit)
     button.pack(side=Tkinter.BOTTOM)
 
+    wScale = Tkinter.Scale(master=root,label="View Width:", from_=3, to=3000,sliderlength=30,length=ax.get_frame().get_window_extent().width, orient=Tkinter.HORIZONTAL)
+    wScale2 = Tkinter.Scale(master=root,label="Generation Speed:", from_=1, to=200,sliderlength=30,length=ax.get_frame().get_window_extent().width, orient=Tkinter.HORIZONTAL)
     wScale2.pack(side=Tkinter.BOTTOM)
     wScale.pack(side=Tkinter.BOTTOM)
 
